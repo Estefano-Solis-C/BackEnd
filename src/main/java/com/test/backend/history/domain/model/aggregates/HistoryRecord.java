@@ -19,19 +19,13 @@ public class HistoryRecord extends AuditableAbstractAggregateRoot<HistoryRecord>
     @ManyToOne
     @JoinColumn(name = "laboratory_id", nullable = true)
     private Laboratory laboratory;
-
     private String name;
-
     private String description;
-
     @Column(name = "occurred_at")
     private java.time.LocalDateTime occurredAt;
-
     @Column(name = "event_type")
     private String eventType;
-
     private String severity;
-
     private String status;
 
     public HistoryRecord(com.test.backend.history.domain.model.commands.CreateHistoryRecordCommand command, Laboratory laboratory) {

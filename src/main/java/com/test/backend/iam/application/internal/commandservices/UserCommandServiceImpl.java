@@ -52,6 +52,7 @@ public class UserCommandServiceImpl implements UserCommandService {
         return Optional.of(new AuthenticatedUser(user.get(), token));
     }
 
+
     @Override
     public Optional<User> handle(SignUpCommand command) {
         if (userRepository.existsByEmail(command.email())) {
