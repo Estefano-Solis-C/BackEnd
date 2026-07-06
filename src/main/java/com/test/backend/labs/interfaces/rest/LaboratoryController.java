@@ -54,6 +54,7 @@ public class LaboratoryController {
     }
 
     @PostMapping
+    @ApiResponse(responseCode = "201", description = "Lab created successfully")
     @Operation(summary = "Create a new laboratory")
     public ResponseEntity<LaboratoryResource> createLaboratory(@RequestBody CreateLaboratoryResource resource) {
         var command = CreateLaboratoryCommandFromResourceAssembler.toCommandFromResource(resource);
