@@ -12,7 +12,7 @@ public record LaboratoryResource(
     String labCode,
     String overallStatus,
     boolean active,
-    java.time.LocalDateTime lastUpdate,
+    java.time.Instant lastUpdate,
     boolean isLive,
     java.time.LocalDate nextMaintenance,
     Integer maintenanceDaysLeft,

@@ -44,7 +44,7 @@ public class SensorReading extends AuditableAbstractAggregateRoot<SensorReading>
     // Compatibility getter for legacy code that groups by date
     public String getDate() {
         if (this.recordedAt == null) return null;
-        return this.recordedAt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        return this.recordedAt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"));
     }
 
     // Compatibility getter for legacy code that reads the metric value

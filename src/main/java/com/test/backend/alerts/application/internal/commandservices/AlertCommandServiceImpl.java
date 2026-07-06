@@ -6,11 +6,14 @@ import com.test.backend.alerts.domain.model.commands.UpdateAlertCommand;
 import com.test.backend.alerts.domain.model.commands.DeleteAlertCommand;
 import com.test.backend.alerts.domain.services.AlertCommandService;
 import com.test.backend.alerts.infrastructure.persistence.jpa.repositories.AlertRepository;
+import com.test.backend.history.domain.model.aggregates.HistoryRecord;
+import com.test.backend.history.infrastructure.persistence.jpa.repositories.HistoryRecordRepository;
 import com.test.backend.labs.domain.model.aggregates.Laboratory;
 import com.test.backend.labs.infrastructure.persistence.jpa.repositories.LaboratoryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Service
@@ -19,13 +22,16 @@ public class AlertCommandServiceImpl implements AlertCommandService {
     private final AlertRepository alertRepository;
     private final LaboratoryRepository laboratoryRepository;
     private final com.test.backend.shared.application.CurrentWorkspaceService currentWorkspaceService;
+    private final HistoryRecordRepository historyRecordRepository;
 
     public AlertCommandServiceImpl(AlertRepository alertRepository,
                                    LaboratoryRepository laboratoryRepository,
-                                   com.test.backend.shared.application.CurrentWorkspaceService currentWorkspaceService) {
+                                   com.test.backend.shared.application.CurrentWorkspaceService currentWorkspaceService,
+                                   HistoryRecordRepository historyRecordRepository) {
         this.alertRepository = alertRepository;
         this.laboratoryRepository = laboratoryRepository;
         this.currentWorkspaceService = currentWorkspaceService;
+        this.historyRecordRepository = historyRecordRepository;
     }
 
     @Override
@@ -41,6 +47,18 @@ public class AlertCommandServiceImpl implements AlertCommandService {
         }
         var alert = new Alert(command, laboratory);
         alertRepository.save(alert);
+
+        // Save history record
+        var record = new HistoryRecord();
+        record.setLaboratory(laboratory);
+        record.setName(alert.getTitle());
+        record.setDescription(alert.getDescription());
+        record.setOccurredAt(LocalDateTime.now());
+        record.setEventType("incident");
+        record.setSeverity(alert.getSeverity());
+        record.setStatus("Active");
+        historyRecordRepository.save(record);
+
         return Optional.of(alert);
     }
 
@@ -54,6 +72,8 @@ public class AlertCommandServiceImpl implements AlertCommandService {
         if (alertOpt.isEmpty()) return Optional.empty();
 
         var alert = alertOpt.get();
+        boolean wasResolved = "RESOLVED".equalsIgnoreCase(alert.getStatus());
+
         Laboratory laboratory = null;
         if (command.laboratoryId() != null) {
             laboratory = laboratoryRepository.findByIdAndWorkspaceId(command.laboratoryId(), workspaceId)
@@ -65,7 +85,9 @@ public class AlertCommandServiceImpl implements AlertCommandService {
         alert.updateFrom(command, laboratory);
         alertRepository.save(alert);
 
-        if (laboratory != null && "RESOLVED".equalsIgnoreCase(alert.getStatus())) {
+        boolean isResolvedNow = "RESOLVED".equalsIgnoreCase(alert.getStatus());
+
+        if (laboratory != null && isResolvedNow) {
             boolean hasOtherActiveAlerts = alertRepository.findByLaboratoryId(laboratory.getId()).stream()
                     .anyMatch(a -> !"RESOLVED".equalsIgnoreCase(a.getStatus()) && !a.getId().equals(alert.getId()));
             if (!hasOtherActiveAlerts) {
@@ -78,6 +100,19 @@ public class AlertCommandServiceImpl implements AlertCommandService {
                 }
                 laboratoryRepository.save(laboratory);
             }
+        }
+
+        // Log history record if the alert was newly resolved
+        if (!wasResolved && isResolvedNow) {
+            var record = new HistoryRecord();
+            record.setLaboratory(laboratory);
+            record.setName(alert.getTitle() + " Resolved");
+            record.setDescription("The alert was resolved by " + currentWorkspaceService.getCurrentUserEmail().orElse("System") + ".");
+            record.setOccurredAt(LocalDateTime.now());
+            record.setEventType("incident");
+            record.setSeverity("Info");
+            record.setStatus("Resolved");
+            historyRecordRepository.save(record);
         }
 
         return Optional.of(alert);

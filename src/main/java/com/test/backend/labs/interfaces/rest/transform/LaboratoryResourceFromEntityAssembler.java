@@ -102,7 +102,7 @@ public class LaboratoryResourceFromEntityAssembler {
             entity.getLabCode(),
             entity.getOverallStatus(),
             entity.isActive(),
-            entity.getLastUpdate(),
+            entity.getLastUpdate() != null ? entity.getLastUpdate().atZone(java.time.ZoneOffset.UTC).toInstant() : null,
             entity.isLive(),
             entity.getNextMaintenance(),
             entity.getMaintenanceDaysLeft(),

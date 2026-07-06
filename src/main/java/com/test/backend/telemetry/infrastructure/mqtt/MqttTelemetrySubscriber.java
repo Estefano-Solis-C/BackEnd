@@ -33,10 +33,15 @@ import java.util.ArrayList;
 import com.test.backend.alerts.infrastructure.persistence.jpa.repositories.AlertRepository;
 import com.test.backend.alerts.domain.model.aggregates.Alert;
 import com.test.backend.alerts.domain.model.entities.AlertMetric;
+import com.test.backend.history.domain.model.aggregates.HistoryRecord;
+import com.test.backend.history.infrastructure.persistence.jpa.repositories.HistoryRecordRepository;
 import com.test.backend.labs.domain.model.entities.LabAlert;
 import com.test.backend.automation.infrastructure.persistence.jpa.repositories.AutomationRuleRepository;
 import com.test.backend.automation.domain.model.aggregates.AutomationRule;
 import com.test.backend.automation.domain.model.aggregates.EquipmentThreshold;
+import com.test.backend.automation.infrastructure.persistence.jpa.repositories.UserWorkspaceAccessRepository;
+import com.test.backend.iam.application.internal.outboundservices.email.EmailService;
+import com.test.backend.labs.domain.model.valueobjets.NotificationPreferences;
 
 @Service
 public class MqttTelemetrySubscriber implements MqttCallbackExtended {
@@ -54,6 +59,9 @@ public class MqttTelemetrySubscriber implements MqttCallbackExtended {
     private final AutomationRuleRepository automationRuleRepository;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
+    private final HistoryRecordRepository historyRecordRepository;
+    private final UserWorkspaceAccessRepository userWorkspaceAccessRepository;
+    private final EmailService emailService;
 
     public MqttTelemetrySubscriber(MqttClient client,
                                    MqttConnectOptions connectOptions,
@@ -64,7 +72,10 @@ public class MqttTelemetrySubscriber implements MqttCallbackExtended {
                                    MetricTypeRepository metricTypeRepository,
                                    AlertRepository alertRepository,
                                    AutomationRuleRepository automationRuleRepository,
-                                   PlatformTransactionManager transactionManager) {
+                                   PlatformTransactionManager transactionManager,
+                                   HistoryRecordRepository historyRecordRepository,
+                                   UserWorkspaceAccessRepository userWorkspaceAccessRepository,
+                                   EmailService emailService) {
         this.client = client;
         this.connectOptions = connectOptions;
         this.mqttProperties = mqttProperties;
@@ -76,6 +87,9 @@ public class MqttTelemetrySubscriber implements MqttCallbackExtended {
         this.automationRuleRepository = automationRuleRepository;
         this.objectMapper = new ObjectMapper();
         this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.historyRecordRepository = historyRecordRepository;
+        this.userWorkspaceAccessRepository = userWorkspaceAccessRepository;
+        this.emailService = emailService;
     }
 
     @PostConstruct
@@ -184,7 +198,7 @@ public class MqttTelemetrySubscriber implements MqttCallbackExtended {
             timestamp = System.currentTimeMillis();
         }
 
-        LocalDateTime recordedAt = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault());
+        LocalDateTime recordedAt = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), java.time.ZoneOffset.UTC);
 
         @SuppressWarnings("unchecked")
         Map<String, Object> metrics = (Map<String, Object>) data.get("metrics");
@@ -271,7 +285,7 @@ public class MqttTelemetrySubscriber implements MqttCallbackExtended {
         if (metric.getObjectType() == null) {
             metric.setObjectType(objectType);
         }
-        metric.setValue(String.format("%.2f", val));
+        metric.setValue(String.format(java.util.Locale.US, "%.2f", val));
         evaluateThresholds(lab, metricType, val, metric, sensor);
         laboratoryRepository.save(lab);
     }
@@ -357,26 +371,53 @@ public class MqttTelemetrySubscriber implements MqttCallbackExtended {
 
                 alert = alertRepository.save(alert);
 
+                // Save history record for critical telemetry alert
+                var record = new HistoryRecord();
+                record.setLaboratory(lab);
+                record.setName(alert.getTitle());
+                record.setDescription(alert.getDescription());
+                record.setOccurredAt(LocalDateTime.now(java.time.ZoneOffset.UTC));
+                record.setEventType("incident");
+                record.setSeverity("Critical");
+                record.setStatus("Active");
+                historyRecordRepository.save(record);
+
                 // Populate Alert metrics
                 List<AlertMetric> alertMetrics = new java.util.ArrayList<>();
                 
                 AlertMetric currentValMetric = new AlertMetric();
                 currentValMetric.setAlert(alert);
                 currentValMetric.setLabel("currentValue");
-                currentValMetric.setValue(String.format("%.2f", val) + metricType.getUnit());
+                currentValMetric.setValue(String.format(java.util.Locale.US, "%.2f", val) + metricType.getUnit());
                 alertMetrics.add(currentValMetric);
 
                 AlertMetric thresholdMetric = new AlertMetric();
                 thresholdMetric.setAlert(alert);
                 thresholdMetric.setLabel("threshold");
-                thresholdMetric.setValue(String.format("%.2f", thresholdVal) + metricType.getUnit());
+                thresholdMetric.setValue(String.format(java.util.Locale.US, "%.2f", thresholdVal) + metricType.getUnit());
                 alertMetrics.add(thresholdMetric);
+
+                if (minThreshold != null) {
+                    AlertMetric minThresholdMetric = new AlertMetric();
+                    minThresholdMetric.setAlert(alert);
+                    minThresholdMetric.setLabel("minThreshold");
+                    minThresholdMetric.setValue(String.format(java.util.Locale.US, "%.2f", minThreshold) + metricType.getUnit());
+                    alertMetrics.add(minThresholdMetric);
+                }
+
+                if (maxThreshold != null) {
+                    AlertMetric maxThresholdMetric = new AlertMetric();
+                    maxThresholdMetric.setAlert(alert);
+                    maxThresholdMetric.setLabel("maxThreshold");
+                    maxThresholdMetric.setValue(String.format(java.util.Locale.US, "%.2f", maxThreshold) + metricType.getUnit());
+                    alertMetrics.add(maxThresholdMetric);
+                }
 
                 AlertMetric exceededMetric = new AlertMetric();
                 exceededMetric.setAlert(alert);
                 exceededMetric.setLabel("exceededBy");
                 double diff = Math.abs(val - thresholdVal);
-                exceededMetric.setValue("+" + String.format("%.2f", diff) + metricType.getUnit());
+                exceededMetric.setValue("+" + String.format(java.util.Locale.US, "%.2f", diff) + metricType.getUnit());
                 alertMetrics.add(exceededMetric);
 
                 AlertMetric sensorTypeMetric = new AlertMetric();
@@ -422,7 +463,7 @@ public class MqttTelemetrySubscriber implements MqttCallbackExtended {
 
                 if (triggeredRuleOpt.isPresent()) {
                     AutomationRule triggeredRule = triggeredRuleOpt.get();
-                    triggeredRule.setLastTriggered(java.time.LocalDateTime.now());
+                    triggeredRule.setLastTriggered(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));
                     automationRuleRepository.save(triggeredRule);
 
                     ruleName = triggeredRule.getName();
@@ -462,6 +503,8 @@ public class MqttTelemetrySubscriber implements MqttCallbackExtended {
                 labAlert.setTimeAgo("Just now");
                 labAlert.setAlertId(alert.getId());
                 lab.getAlerts().add(0, labAlert);
+
+                sendEmailNotifications(lab, alert, "CRITICAL", sensor.getSensorName(), String.format(java.util.Locale.US, "%.2f", val) + metricType.getUnit(), String.format(java.util.Locale.US, "%.2f", thresholdVal) + metricType.getUnit());
             }
         } else if (warningBreach) {
             metric.setStatus("WARNING");
@@ -485,19 +528,46 @@ public class MqttTelemetrySubscriber implements MqttCallbackExtended {
 
                 alert = alertRepository.save(alert);
 
+                // Save history record for warning telemetry alert
+                var record = new HistoryRecord();
+                record.setLaboratory(lab);
+                record.setName(alert.getTitle());
+                record.setDescription(alert.getDescription());
+                record.setOccurredAt(LocalDateTime.now(java.time.ZoneOffset.UTC));
+                record.setEventType("incident");
+                record.setSeverity("Warning");
+                record.setStatus("Active");
+                historyRecordRepository.save(record);
+
                 List<AlertMetric> alertMetrics = new java.util.ArrayList<>();
                 
                 AlertMetric currentValMetric = new AlertMetric();
                 currentValMetric.setAlert(alert);
                 currentValMetric.setLabel("currentValue");
-                currentValMetric.setValue(String.format("%.2f", val) + metricType.getUnit());
+                currentValMetric.setValue(String.format(java.util.Locale.US, "%.2f", val) + metricType.getUnit());
                 alertMetrics.add(currentValMetric);
 
                 AlertMetric thresholdMetric = new AlertMetric();
                 thresholdMetric.setAlert(alert);
                 thresholdMetric.setLabel("threshold");
-                thresholdMetric.setValue(String.format("%.2f", thresholdVal) + metricType.getUnit());
+                thresholdMetric.setValue(String.format(java.util.Locale.US, "%.2f", thresholdVal) + metricType.getUnit());
                 alertMetrics.add(thresholdMetric);
+
+                if (minThreshold != null) {
+                    AlertMetric minThresholdMetric = new AlertMetric();
+                    minThresholdMetric.setAlert(alert);
+                    minThresholdMetric.setLabel("minThreshold");
+                    minThresholdMetric.setValue(String.format(java.util.Locale.US, "%.2f", minThreshold) + metricType.getUnit());
+                    alertMetrics.add(minThresholdMetric);
+                }
+
+                if (maxThreshold != null) {
+                    AlertMetric maxThresholdMetric = new AlertMetric();
+                    maxThresholdMetric.setAlert(alert);
+                    maxThresholdMetric.setLabel("maxThreshold");
+                    maxThresholdMetric.setValue(String.format(java.util.Locale.US, "%.2f", maxThreshold) + metricType.getUnit());
+                    alertMetrics.add(maxThresholdMetric);
+                }
 
                 alert.getMetrics().addAll(alertMetrics);
                 alertRepository.save(alert);
@@ -510,6 +580,8 @@ public class MqttTelemetrySubscriber implements MqttCallbackExtended {
                 labAlert.setTimeAgo("Just now");
                 labAlert.setAlertId(alert.getId());
                 lab.getAlerts().add(0, labAlert);
+
+                sendEmailNotifications(lab, alert, "WARNING", sensor.getSensorName(), String.format(java.util.Locale.US, "%.2f", val) + metricType.getUnit(), String.format(java.util.Locale.US, "%.2f", thresholdVal) + metricType.getUnit());
             }
         } else {
             metric.setStatus("NORMAL");
@@ -525,6 +597,41 @@ public class MqttTelemetrySubscriber implements MqttCallbackExtended {
                 lab.setOverallStatus("WARNING");
                 lab.setStatus("Warning");
             }
+        }
+    }
+
+    private void sendEmailNotifications(Laboratory lab, Alert alert, String severity, String sensorName, String valueStr, String thresholdStr) {
+        try {
+            NotificationPreferences prefs = lab.getNotificationPreferences();
+            if (prefs == null || !prefs.isEmail()) {
+                return;
+            }
+            if ("WARNING".equalsIgnoreCase(severity) && prefs.isCriticalOnly()) {
+                return;
+            }
+            
+            var workspaceAccessList = userWorkspaceAccessRepository.findByWorkspaceId(lab.getWorkspace().getId());
+            if (workspaceAccessList != null && !workspaceAccessList.isEmpty()) {
+                for (var access : workspaceAccessList) {
+                    if (access.getUserProfile() != null && access.getUserProfile().getEmail() != null) {
+                        emailService.sendAlertEmail(
+                            access.getUserProfile().getEmail(),
+                            access.getUserProfile().getFullName(),
+                            lab.getName(),
+                            alert.getTitle(),
+                            alert.getDescription(),
+                            severity,
+                            sensorName,
+                            valueStr,
+                            thresholdStr
+                        );
+                    }
+                }
+            } else {
+                logger.warn("No workspace users found to notify via email for lab {}", lab.getName());
+            }
+        } catch (Exception e) {
+            logger.error("Failed to trigger email notifications for alert: {}", alert.getTitle(), e);
         }
     }
 

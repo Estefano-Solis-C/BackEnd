@@ -30,7 +30,7 @@ public class TelemetrySimulationController {
             double value = Double.parseDouble(request.getOrDefault("value", "5.4").toString());
 
             String topic = "safelab/" + unit + "/data";
-            String payload = String.format("{\"timestamp\":%d,\"metrics\":{\"%s\":%.2f}}",
+            String payload = String.format(java.util.Locale.US, "{\"timestamp\":%d,\"metrics\":{\"%s\":%.2f}}",
                     System.currentTimeMillis(), metricName, value);
 
             MqttMessage message = new MqttMessage(payload.getBytes(StandardCharsets.UTF_8));
