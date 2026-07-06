@@ -15,7 +15,6 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 @Table(name = "history_records")
 public class HistoryRecord extends AuditableAbstractAggregateRoot<HistoryRecord> {
-
     @ManyToOne
     @JoinColumn(name = "laboratory_id", nullable = true)
     private Laboratory laboratory;
