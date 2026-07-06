@@ -10,7 +10,7 @@ public class UpdateHistoryRecordCommandFromResourceAssembler {
             id,
             resource.name(),
             resource.description(),
-            resource.occurredAt(),
+            resource.occurredAt() != null ? java.time.LocalDateTime.ofInstant(resource.occurredAt(), java.time.ZoneOffset.UTC) : null,
             resource.lab(),
             resource.eventType(),
             resource.severity(),

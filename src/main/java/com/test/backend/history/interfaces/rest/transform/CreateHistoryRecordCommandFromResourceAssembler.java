@@ -9,7 +9,7 @@ public class CreateHistoryRecordCommandFromResourceAssembler {
         return new CreateHistoryRecordCommand(
             resource.name(),
             resource.description(),
-            resource.occurredAt() != null ? resource.occurredAt() : java.time.LocalDateTime.now(),
+            resource.occurredAt() != null ? java.time.LocalDateTime.ofInstant(resource.occurredAt(), java.time.ZoneOffset.UTC) : java.time.LocalDateTime.now(java.time.ZoneOffset.UTC),
             resource.lab(),
             resource.eventType(),
             resource.severity(),

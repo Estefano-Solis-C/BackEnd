@@ -170,31 +170,132 @@ public class UserCommandServiceImpl implements UserCommandService {
         return true;
     }
 
+    private Long getMaxSeededId(String settingKey) {
+        try {
+            Object val = entityManager.createNativeQuery(
+                "SELECT value FROM general_settings WHERE setting_key = ?1"
+            ).setParameter(1, settingKey).getSingleResult();
+            if (val != null) {
+                return Long.parseLong(val.toString());
+            }
+        } catch (Exception e) {
+            // Setting doesn't exist yet, fallback to 0
+        }
+        return 0L;
+    }
+
     @Override
     @Transactional
     public void handleCleanTestUsers() {
         String adminEmail = "admin@safelab.com";
-        
-        // 1. Delete workspace access for non-admin profiles
-        entityManager.createNativeQuery(
-            "DELETE FROM user_workspace_accesses WHERE user_profile_id IN (SELECT id FROM user_profiles WHERE email != ?1)"
-        ).setParameter(1, adminEmail).executeUpdate();
 
-        // 2. Delete user profiles (cascades to lab accesses and notification preferences)
-        entityManager.createNativeQuery(
-            "DELETE FROM user_profiles WHERE email != ?1"
-        ).setParameter(1, adminEmail).executeUpdate();
+        Long maxSeededUserId = getMaxSeededId("max_seeded_user_id");
+        if (maxSeededUserId == 0L) {
+            try {
+                Object adminId = entityManager.createNativeQuery("SELECT id FROM users WHERE email = ?1").setParameter(1, adminEmail).getSingleResult();
+                if (adminId != null) maxSeededUserId = Long.parseLong(adminId.toString());
+            } catch (Exception e) {}
+        }
 
-        // 3. Delete user roles references
-        entityManager.createNativeQuery(
-            "DELETE FROM user_iam_roles WHERE user_id IN (SELECT id FROM users WHERE email != ?1)"
-        ).setParameter(1, adminEmail).executeUpdate();
+        Long maxSeededProfileId = getMaxSeededId("max_seeded_profile_id");
+        if (maxSeededProfileId == 0L) {
+            try {
+                Object pId = entityManager.createNativeQuery("SELECT id FROM user_profiles WHERE email = ?1").setParameter(1, adminEmail).getSingleResult();
+                if (pId != null) maxSeededProfileId = Long.parseLong(pId.toString());
+            } catch (Exception e) {}
+        }
 
-        // 4. Delete IAM users
-        entityManager.createNativeQuery(
-            "DELETE FROM users WHERE email != ?1"
-        ).setParameter(1, adminEmail).executeUpdate();
-        
-        logger.info("Successfully cleaned up all test users. Admin account 'admin@safelab.com' was preserved.");
+        Long maxSeededLabId = getMaxSeededId("max_seeded_laboratory_id");
+        if (maxSeededLabId == 0L) {
+            try {
+                Object maxLabId = entityManager.createNativeQuery("SELECT MAX(id) FROM laboratories WHERE lab_code IN ('LAB-BSL4-01','LAB-CHEM-02','LAB-CRYO-03','LAB-ANAL-04','LAB-MOLB-05','LAB-CLEAN-06','LAB-RAD-07','LAB-PHARM-08','LAB-GENE-09','LAB-MICRO-10')").getSingleResult();
+                if (maxLabId != null) maxSeededLabId = Long.parseLong(maxLabId.toString());
+            } catch (Exception e) {}
+        }
+
+        Long maxSeededReadingId = getMaxSeededId("max_seeded_reading_id");
+        Long maxSeededAlertId = getMaxSeededId("max_seeded_alert_id");
+        Long maxSeededAlertMetricId = getMaxSeededId("max_seeded_alert_metric_id");
+        Long maxSeededHistoryId = getMaxSeededId("max_seeded_history_id");
+        Long maxSeededSensorId = getMaxSeededId("max_seeded_sensor_id");
+        Long maxSeededCalibrationId = getMaxSeededId("max_seeded_calibration_record_id");
+        Long maxSeededWorkspaceAccessId = getMaxSeededId("max_seeded_workspace_access_id");
+        Long maxSeededLabAccessId = getMaxSeededId("max_seeded_lab_access_id");
+        Long maxSeededNotificationPrefId = getMaxSeededId("max_seeded_notification_pref_id");
+        Long maxSeededStorageUnitId = getMaxSeededId("max_seeded_storage_unit_id");
+        Long maxSeededMitigationSystemId = getMaxSeededId("max_seeded_mitigation_system_id");
+        Long maxSeededMetricSubId = getMaxSeededId("max_seeded_metric_sub_id");
+        Long maxSeededMetricId = getMaxSeededId("max_seeded_metric_id");
+        Long maxSeededActivityId = getMaxSeededId("max_seeded_activity_id");
+        Long maxSeededScheduleId = getMaxSeededId("max_seeded_schedule_id");
+        Long maxSeededEquipmentThresholdId = getMaxSeededId("max_seeded_equipment_threshold_id");
+        Long maxSeededWorkspaceId = getMaxSeededId("max_seeded_workspace_id");
+
+        // Native deletions in exact dependency order:
+
+        // 1. calibration_records
+        entityManager.createNativeQuery("DELETE FROM calibration_records WHERE id > ?1").setParameter(1, maxSeededCalibrationId).executeUpdate();
+
+        // 2. sensor_readings
+        entityManager.createNativeQuery("DELETE FROM sensor_readings WHERE id > ?1").setParameter(1, maxSeededReadingId).executeUpdate();
+
+        // 3. alert_metrics
+        entityManager.createNativeQuery("DELETE FROM alert_metrics WHERE id > ?1").setParameter(1, maxSeededAlertMetricId).executeUpdate();
+
+        // 4. alerts
+        entityManager.createNativeQuery("DELETE FROM alerts WHERE id > ?1").setParameter(1, maxSeededAlertId).executeUpdate();
+
+        // 5. mitigation_systems
+        entityManager.createNativeQuery("DELETE FROM mitigation_systems WHERE id > ?1").setParameter(1, maxSeededMitigationSystemId).executeUpdate();
+
+        // 6. storage_units
+        entityManager.createNativeQuery("DELETE FROM storage_units WHERE id > ?1").setParameter(1, maxSeededStorageUnitId).executeUpdate();
+
+        // 7. lab_metric_subscriptions
+        entityManager.createNativeQuery("DELETE FROM lab_metric_subscriptions WHERE id > ?1").setParameter(1, maxSeededMetricSubId).executeUpdate();
+
+        // 8. lab_metrics
+        entityManager.createNativeQuery("DELETE FROM lab_metrics WHERE id > ?1").setParameter(1, maxSeededMetricId).executeUpdate();
+
+        // 9. lab_activities
+        entityManager.createNativeQuery("DELETE FROM lab_activities WHERE id > ?1").setParameter(1, maxSeededActivityId).executeUpdate();
+
+        // 10. lab_schedules
+        entityManager.createNativeQuery("DELETE FROM lab_schedules WHERE id > ?1").setParameter(1, maxSeededScheduleId).executeUpdate();
+
+        // 11. history_records
+        entityManager.createNativeQuery("DELETE FROM history_records WHERE id > ?1").setParameter(1, maxSeededHistoryId).executeUpdate();
+
+        // 12. sensor_configurations
+        entityManager.createNativeQuery("DELETE FROM sensor_configurations WHERE id > ?1").setParameter(1, maxSeededSensorId).executeUpdate();
+
+        // 13. equipment_thresholds
+        entityManager.createNativeQuery("DELETE FROM equipment_thresholds WHERE id > ?1").setParameter(1, maxSeededEquipmentThresholdId).executeUpdate();
+
+        // 14. lab_user_accesses
+        entityManager.createNativeQuery("DELETE FROM lab_user_accesses WHERE id > ?1").setParameter(1, maxSeededLabAccessId).executeUpdate();
+
+        // 15. user_workspace_accesses
+        entityManager.createNativeQuery("DELETE FROM user_workspace_accesses WHERE id > ?1").setParameter(1, maxSeededWorkspaceAccessId).executeUpdate();
+
+        // 16. notification_preferences
+        entityManager.createNativeQuery("DELETE FROM notification_preferences WHERE id > ?1").setParameter(1, maxSeededNotificationPrefId).executeUpdate();
+
+        // 17. user_profiles
+        entityManager.createNativeQuery("DELETE FROM user_profiles WHERE id > ?1").setParameter(1, maxSeededProfileId).executeUpdate();
+
+        // 18. user_iam_roles
+        entityManager.createNativeQuery("DELETE FROM user_iam_roles WHERE user_id > ?1").setParameter(1, maxSeededUserId).executeUpdate();
+
+        // 19. users
+        entityManager.createNativeQuery("DELETE FROM users WHERE id > ?1").setParameter(1, maxSeededUserId).executeUpdate();
+
+        // 20. laboratories
+        entityManager.createNativeQuery("DELETE FROM laboratories WHERE id > ?1").setParameter(1, maxSeededLabId).executeUpdate();
+
+        // 21. workspaces
+        entityManager.createNativeQuery("DELETE FROM workspaces WHERE id > ?1").setParameter(1, maxSeededWorkspaceId).executeUpdate();
+
+        logger.info("Successfully performed pristine database reset. Seeded data is preserved.");
     }
 }

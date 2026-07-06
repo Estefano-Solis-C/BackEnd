@@ -4,6 +4,7 @@ import com.test.backend.alerts.domain.model.aggregates.Alert;
 import com.test.backend.alerts.interfaces.rest.resources.AlertMetricResource;
 import com.test.backend.alerts.interfaces.rest.resources.AlertResource;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class AlertResourceFromEntityAssembler {
@@ -42,11 +43,40 @@ public class AlertResourceFromEntityAssembler {
                 ? entity.getSensorConfiguration().getEquipment().getName()
                 : null;
 
-        List<AlertMetricResource> metrics = List.of();
+        List<AlertMetricResource> metrics = new ArrayList<>();
         if (entity.getMetrics() != null) {
-            metrics = entity.getMetrics().stream()
-                    .map(m -> new AlertMetricResource(m.getLabel(), m.getValue()))
-                    .toList();
+            for (var m : entity.getMetrics()) {
+                metrics.add(new AlertMetricResource(m.getLabel(), m.getValue()));
+            }
+        }
+
+        // Dynamically add minThreshold and maxThreshold if they are not already present
+        boolean hasMin = metrics.stream().anyMatch(m -> "minThreshold".equals(m.label()));
+        boolean hasMax = metrics.stream().anyMatch(m -> "maxThreshold".equals(m.label()));
+
+        Double minThreshold = null;
+        Double maxThreshold = null;
+        if (entity.getSensorConfiguration() != null) {
+            minThreshold = entity.getSensorConfiguration().getMinThreshold();
+            maxThreshold = entity.getSensorConfiguration().getMaxThreshold();
+            if (entity.getSensorConfiguration().getEquipment() != null) {
+                if (entity.getSensorConfiguration().getEquipment().getMinThreshold() != null) {
+                    minThreshold = entity.getSensorConfiguration().getEquipment().getMinThreshold();
+                }
+                if (entity.getSensorConfiguration().getEquipment().getMaxThreshold() != null) {
+                    maxThreshold = entity.getSensorConfiguration().getEquipment().getMaxThreshold();
+                }
+            }
+        }
+
+        String unit = (entity.getSensorConfiguration() != null) ? entity.getSensorConfiguration().getUnit() : "";
+        if (unit == null) unit = "";
+
+        if (!hasMin && minThreshold != null) {
+            metrics.add(new AlertMetricResource("minThreshold", String.format(java.util.Locale.US, "%.2f", minThreshold) + unit));
+        }
+        if (!hasMax && maxThreshold != null) {
+            metrics.add(new AlertMetricResource("maxThreshold", String.format(java.util.Locale.US, "%.2f", maxThreshold) + unit));
         }
 
         return new AlertResource(

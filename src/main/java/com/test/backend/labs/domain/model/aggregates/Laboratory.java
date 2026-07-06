@@ -96,7 +96,7 @@ public class Laboratory extends AuditableAbstractAggregateRoot<Laboratory> {
         this.nextMaintenance = command.nextMaintenance();
         this.maintenanceDaysLeft = command.maintenanceDaysLeft();
         this.notificationPreferences = command.notificationPreferences();
-        this.lastUpdate = java.time.LocalDateTime.now();
+        this.lastUpdate = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC);
     }
 
     public Laboratory updateFrom(com.test.backend.labs.domain.model.commands.UpdateLaboratoryCommand command) {
@@ -114,7 +114,7 @@ public class Laboratory extends AuditableAbstractAggregateRoot<Laboratory> {
         this.nextMaintenance = command.nextMaintenance();
         this.maintenanceDaysLeft = command.maintenanceDaysLeft();
         this.notificationPreferences = command.notificationPreferences();
-        this.lastUpdate = java.time.LocalDateTime.now();
+        this.lastUpdate = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC);
         return this;
     }
 

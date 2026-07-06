@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import jakarta.persistence.EntityManager;
 
 @Service
 public class LaboratoryCommandServiceImpl implements LaboratoryCommandService {
@@ -22,15 +23,18 @@ public class LaboratoryCommandServiceImpl implements LaboratoryCommandService {
     private final MetricTypeRepository metricTypeRepository;
     private final WorkspaceRepository workspaceRepository;
     private final CurrentWorkspaceService currentWorkspaceService;
+    private final EntityManager entityManager;
 
     public LaboratoryCommandServiceImpl(LaboratoryRepository laboratoryRepository,
                                          MetricTypeRepository metricTypeRepository,
                                          WorkspaceRepository workspaceRepository,
-                                         CurrentWorkspaceService currentWorkspaceService) {
+                                         CurrentWorkspaceService currentWorkspaceService,
+                                         EntityManager entityManager) {
         this.laboratoryRepository = laboratoryRepository;
         this.metricTypeRepository = metricTypeRepository;
         this.workspaceRepository = workspaceRepository;
         this.currentWorkspaceService = currentWorkspaceService;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -133,6 +137,38 @@ public class LaboratoryCommandServiceImpl implements LaboratoryCommandService {
         var laboratory = laboratoryRepository.findByIdAndWorkspaceId(command.id(), workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("Laboratory not found in this workspace"));
 
+        Long labId = laboratory.getId();
+
+        // 1. Delete calibration records for sensors in this laboratory
+        entityManager.createNativeQuery(
+            "DELETE FROM calibration_records WHERE sensor_configuration_id IN (SELECT id FROM sensor_configurations WHERE laboratory_id = ?1)"
+        ).setParameter(1, labId).executeUpdate();
+
+        // 2. Delete sensor readings for this laboratory
+        entityManager.createNativeQuery(
+            "DELETE FROM sensor_readings WHERE laboratory_id = ?1"
+        ).setParameter(1, labId).executeUpdate();
+
+        // 3. Delete sensor configurations for this laboratory
+        entityManager.createNativeQuery(
+            "DELETE FROM sensor_configurations WHERE laboratory_id = ?1"
+        ).setParameter(1, labId).executeUpdate();
+
+        // 4. Delete alerts for this laboratory (and alert metrics)
+        entityManager.createNativeQuery(
+            "DELETE FROM alert_metrics WHERE alert_id IN (SELECT id FROM alerts WHERE laboratory_id = ?1)"
+        ).setParameter(1, labId).executeUpdate();
+
+        entityManager.createNativeQuery(
+            "DELETE FROM alerts WHERE laboratory_id = ?1"
+        ).setParameter(1, labId).executeUpdate();
+
+        // 5. Delete lab user accesses for this laboratory
+        entityManager.createNativeQuery(
+            "DELETE FROM lab_user_accesses WHERE laboratory_id = ?1"
+        ).setParameter(1, labId).executeUpdate();
+
+        // 6. Delete laboratory
         laboratoryRepository.delete(laboratory);
     }
 }

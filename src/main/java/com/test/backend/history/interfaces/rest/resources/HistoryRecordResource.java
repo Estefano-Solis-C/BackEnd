@@ -4,7 +4,7 @@ public record HistoryRecordResource(
     Long id,
     String name,
     String description,
-    java.time.LocalDateTime occurredAt,
+    java.time.Instant occurredAt,
     String lab,
     String eventType,
     String severity,
