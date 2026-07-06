@@ -179,17 +179,27 @@ public class UserCommandServiceImpl implements UserCommandService {
             "DELETE FROM user_workspace_accesses WHERE user_profile_id IN (SELECT id FROM user_profiles WHERE email != ?1)"
         ).setParameter(1, adminEmail).executeUpdate();
 
-        // 2. Delete user profiles (cascades to lab accesses and notification preferences)
+        // 2. Delete lab user accesses for non-admin profiles
+        entityManager.createNativeQuery(
+            "DELETE FROM lab_user_accesses WHERE user_profile_id IN (SELECT id FROM user_profiles WHERE email != ?1)"
+        ).setParameter(1, adminEmail).executeUpdate();
+
+        // 3. Delete notification preferences for non-admin profiles
+        entityManager.createNativeQuery(
+            "DELETE FROM notification_preferences WHERE user_profile_id IN (SELECT id FROM user_profiles WHERE email != ?1)"
+        ).setParameter(1, adminEmail).executeUpdate();
+
+        // 4. Delete user profiles
         entityManager.createNativeQuery(
             "DELETE FROM user_profiles WHERE email != ?1"
         ).setParameter(1, adminEmail).executeUpdate();
 
-        // 3. Delete user roles references
+        // 5. Delete user roles references
         entityManager.createNativeQuery(
             "DELETE FROM user_iam_roles WHERE user_id IN (SELECT id FROM users WHERE email != ?1)"
         ).setParameter(1, adminEmail).executeUpdate();
 
-        // 4. Delete IAM users
+        // 6. Delete IAM users
         entityManager.createNativeQuery(
             "DELETE FROM users WHERE email != ?1"
         ).setParameter(1, adminEmail).executeUpdate();
