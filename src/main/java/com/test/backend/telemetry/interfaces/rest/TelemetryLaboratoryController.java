@@ -88,7 +88,8 @@ public class TelemetryLaboratoryController {
             for (var m : lab.getMetrics()) {
                 if (m.getName().toLowerCase().contains("temp")) {
                     try {
-                        temperature = Double.parseDouble(m.getValue());
+                        String val = m.getValue().replace(',', '.');
+                        temperature = Double.parseDouble(val);
                     } catch (Exception ignored) {}
                 }
             }

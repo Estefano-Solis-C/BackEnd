@@ -11,7 +11,7 @@ public class HistoryRecordResourceFromEntityAssembler {
             entity.getId(),
             entity.getName(),
             entity.getDescription(),
-            entity.getOccurredAt(),
+            entity.getOccurredAt() != null ? entity.getOccurredAt().atZone(java.time.ZoneOffset.UTC).toInstant() : null,
             labName,
             entity.getEventType(),
             entity.getSeverity(),

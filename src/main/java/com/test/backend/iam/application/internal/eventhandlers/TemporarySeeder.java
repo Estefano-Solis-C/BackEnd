@@ -22,6 +22,8 @@ import com.test.backend.alerts.domain.model.entities.AlertMetric;
 import com.test.backend.alerts.infrastructure.persistence.jpa.repositories.AlertRepository;
 import com.test.backend.history.domain.model.aggregates.HistoryRecord;
 import com.test.backend.history.infrastructure.persistence.jpa.repositories.HistoryRecordRepository;
+import com.test.backend.compliance.domain.model.aggregates.ComplianceReport;
+import com.test.backend.compliance.infrastructure.persistence.jpa.repositories.ComplianceReportRepository;
 import com.test.backend.iam.domain.model.commands.SignUpCommand;
 import com.test.backend.iam.domain.model.queries.GetUserByEmailQuery;
 import com.test.backend.iam.domain.model.valueobjects.Roles;
@@ -71,6 +73,7 @@ public class TemporarySeeder implements CommandLineRunner {
     private final WorkspaceRepository workspaceRepository;
     private final UserWorkspaceAccessRepository userWorkspaceAccessRepository;
     private final EntityManager entityManager;
+    private final ComplianceReportRepository complianceReportRepository;
 
     public TemporarySeeder(UserCommandService userCommandService,
                            UserQueryService userQueryService,
@@ -87,7 +90,8 @@ public class TemporarySeeder implements CommandLineRunner {
                            HistoryRecordRepository historyRecordRepository,
                            WorkspaceRepository workspaceRepository,
                            UserWorkspaceAccessRepository userWorkspaceAccessRepository,
-                           EntityManager entityManager) {
+                           EntityManager entityManager,
+                           ComplianceReportRepository complianceReportRepository) {
         this.userCommandService = userCommandService;
         this.userQueryService = userQueryService;
         this.userProfileRepository = userProfileRepository;
@@ -104,6 +108,7 @@ public class TemporarySeeder implements CommandLineRunner {
         this.workspaceRepository = workspaceRepository;
         this.userWorkspaceAccessRepository = userWorkspaceAccessRepository;
         this.entityManager = entityManager;
+        this.complianceReportRepository = complianceReportRepository;
     }
 
     @Override
@@ -1739,6 +1744,46 @@ public class TemporarySeeder implements CommandLineRunner {
             historyRecordRepository.save(new HistoryRecord(lab5, "PCR Thermocycler Inspection", "Routine safety review completed on PCR Thermocycler T-12.", LocalDateTime.now().minusHours(14), "maintenance", "Info", "Completed"));
             historyRecordRepository.save(new HistoryRecord(lab6, "HEPA Filter Replacement", "HEPA primary stage filters scheduled for replacement next week.", LocalDateTime.now().minusDays(2), "maintenance", "Info", "Scheduled"));
             logger.info("History records seeded successfully.");
+
+            // 15. Seed Compliance Reports
+            logger.info("Seeding compliance reports...");
+            var report1 = new ComplianceReport();
+            report1.setLaboratory(lab1);
+            report1.setName("Environmental Compliance Audit");
+            report1.setType("Safety Compliance");
+            report1.setPeriod("May 2026");
+            report1.setSize("2.4 MB");
+            report1.setStatus("READY");
+            report1.setPeriodStart(LocalDateTime.now().minusMonths(1).minusDays(10));
+            report1.setPeriodEnd(LocalDateTime.now().minusMonths(1));
+            report1.setGeneratedAt(LocalDateTime.now().minusDays(5));
+            complianceReportRepository.save(report1);
+
+            var report2 = new ComplianceReport();
+            report2.setLaboratory(lab1);
+            report2.setName("Ventilation and HEPA Log");
+            report2.setType("System Log");
+            report2.setPeriod("June 2026");
+            report2.setSize("1.8 MB");
+            report2.setStatus("READY");
+            report2.setPeriodStart(LocalDateTime.now().minusDays(20));
+            report2.setPeriodEnd(LocalDateTime.now().minusDays(5));
+            report2.setGeneratedAt(LocalDateTime.now().minusDays(2));
+            complianceReportRepository.save(report2);
+
+            var report3 = new ComplianceReport();
+            report3.setLaboratory(lab2);
+            report3.setName("Chemical Storage Safety Assessment");
+            report3.setType("Safety Compliance");
+            report3.setPeriod("Q2 2026");
+            report3.setSize("4.1 MB");
+            report3.setStatus("READY");
+            report3.setPeriodStart(LocalDateTime.now().minusMonths(3));
+            report3.setPeriodEnd(LocalDateTime.now());
+            report3.setGeneratedAt(LocalDateTime.now().minusDays(1));
+            complianceReportRepository.save(report3);
+
+            logger.info("Compliance reports seeded successfully.");
             saveMaxSeededIds();
         }
     }
@@ -1765,6 +1810,7 @@ public class TemporarySeeder implements CommandLineRunner {
         saveMaxIdSetting("max_seeded_equipment_threshold_id", "equipment_thresholds");
         saveMaxIdSetting("max_seeded_calibration_record_id", "calibration_records");
         saveMaxIdSetting("max_seeded_alert_metric_id", "alert_metrics");
+        saveMaxIdSetting("max_seeded_compliance_report_id", "compliance_reports");
     }
 
     private void saveMaxIdSetting(String settingKey, String tableName) {

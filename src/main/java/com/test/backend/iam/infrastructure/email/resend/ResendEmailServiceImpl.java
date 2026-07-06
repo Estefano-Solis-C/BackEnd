@@ -57,4 +57,44 @@ public class ResendEmailServiceImpl implements EmailService {
             throw new RuntimeException("Email delivery failed: " + e.getMessage(), e);
         }
     }
+
+    @Override
+    @Async
+    public void sendAlertEmail(String toEmail, String recipientName, String labName, String alertTitle, String alertDescription, String severity, String sensorName, String metricValue, String thresholdValue) {
+        logger.info("Starting async alert email delivery task to {} for lab {}...", toEmail, labName);
+        
+        String severityColor = "CRITICAL".equalsIgnoreCase(severity) ? "#ef4444" : "#f59e0b";
+        String severityLabel = "CRITICAL".equalsIgnoreCase(severity) ? "CRITICAL INCIDENT" : "WARNING ALERT";
+        
+        CreateEmailOptions sendEmailRequest = CreateEmailOptions.builder()
+                .from("onboarding@resend.dev")
+                .to(toEmail)
+                .subject("[" + severityLabel + "] " + alertTitle + " in " + labName)
+                .html("<div style=\"font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;\">" +
+                        "  <div style=\"display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;\">" +
+                        "    <span style=\"font-size: 20px; font-weight: 700; color: #0f172a;\">SafeLab Telemetry</span>" +
+                        "    <span style=\"display: inline-block; padding: 6px 12px; font-size: 12px; font-weight: 700; border-radius: 9999px; background-color: " + severityColor + "15; color: " + severityColor + "; text-transform: uppercase;\">" + severityLabel + "</span>" +
+                        "  </div>" +
+                        "  <h2 style=\"color: #0f172a; margin-top: 0; margin-bottom: 12px;\">" + alertTitle + "</h2>" +
+                        "  <p style=\"color: #475569; font-size: 16px; line-height: 24px; margin-bottom: 24px;\">Hi " + recipientName + ",</p>" +
+                        "  <p style=\"color: #475569; font-size: 16px; line-height: 24px; margin-bottom: 24px;\">An alert condition has been detected in laboratory <strong>" + labName + "</strong>:</p>" +
+                        "  <div style=\"background-color: #f8fafc; border-left: 4px solid " + severityColor + "; padding: 16px; border-radius: 0 8px 8px 0; margin-bottom: 24px;\">" +
+                        "    <p style=\"margin: 0 0 8px 0; color: #334155; font-size: 15px;\"><strong>Description:</strong> " + alertDescription + "</p>" +
+                        "    <p style=\"margin: 0 0 8px 0; color: #334155; font-size: 15px;\"><strong>Sensor:</strong> " + sensorName + "</p>" +
+                        "    <p style=\"margin: 0 0 8px 0; color: #334155; font-size: 15px;\"><strong>Current Value:</strong> <span style=\"color: " + severityColor + "; font-weight: 600;\">" + metricValue + "</span></p>" +
+                        "    <p style=\"margin: 0; color: #334155; font-size: 15px;\"><strong>Threshold Limit:</strong> " + thresholdValue + "</p>" +
+                        "  </div>" +
+                        "  <p style=\"color: #64748b; font-size: 14px; line-height: 20px;\">You are receiving this notification because email alerts are enabled in the settings for <strong>" + labName + "</strong>. You can update these settings anytime in the SafeLab portal.</p>" +
+                        "  <hr style=\"border: none; border-top: 1px solid #f1f5f9; margin: 24px 0;\" />" +
+                        "  <p style=\"color: #94a3b8; font-size: 12px; text-align: center; margin: 0;\">&copy; 2026 SafeLab. All rights reserved.</p>" +
+                        "</div>")
+                .build();
+
+        try {
+            CreateEmailResponse response = resend.emails().send(sendEmailRequest);
+            logger.info("Alert notification email sent to {} successfully. Response ID: {}", toEmail, response.getId());
+        } catch (Exception e) {
+            logger.error("Failed to send alert notification email to {} via Resend", toEmail, e);
+        }
+    }
 }
