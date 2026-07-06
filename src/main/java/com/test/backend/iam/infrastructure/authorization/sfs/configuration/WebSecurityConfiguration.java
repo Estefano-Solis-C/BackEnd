@@ -68,6 +68,9 @@ public class WebSecurityConfiguration {
                         .requestMatchers(
                                 "/api/v1/authentication/sign-in",
                                 "/api/v1/authentication/sign-up",
+                                "/api/v1/authentication/confirm-account",
+                                "/api/v1/authentication/resend-code",
+                                "/api/v1/authentication/clean-test-users",
                                 "/api/v1/system/status",
                                 "/api/v1/telemetry/simulate",
                                 "/v3/api-docs/**",

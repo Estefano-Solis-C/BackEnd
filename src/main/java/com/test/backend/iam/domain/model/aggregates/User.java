@@ -35,6 +35,12 @@ public class User extends AuditableAbstractAggregateRoot<User> {
     @Column(nullable = false, length = 100)
     private String fullName;
 
+    @Column(nullable = false)
+    private boolean confirmed = false;
+
+    @Column(length = 10)
+    private String confirmationCode;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "user_iam_roles",
