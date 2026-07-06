@@ -29,6 +29,7 @@ import com.test.backend.iam.domain.model.queries.GetUserByEmailQuery;
 import com.test.backend.iam.domain.model.valueobjects.Roles;
 import com.test.backend.iam.domain.services.UserCommandService;
 import com.test.backend.iam.domain.services.UserQueryService;
+import com.test.backend.iam.infrastructure.persistence.jpa.repositories.UserRepository;
 import com.test.backend.labs.domain.model.aggregates.Workspace;
 import com.test.backend.labs.infrastructure.persistence.jpa.repositories.WorkspaceRepository;
 import jakarta.persistence.EntityManager;
@@ -59,6 +60,7 @@ public class TemporarySeeder implements CommandLineRunner {
 
     private final UserCommandService userCommandService;
     private final UserQueryService userQueryService;
+    private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final RoleRepository automationRoleRepository;
     private final GeneralSettingRepository generalSettingRepository;
@@ -77,6 +79,7 @@ public class TemporarySeeder implements CommandLineRunner {
 
     public TemporarySeeder(UserCommandService userCommandService,
                            UserQueryService userQueryService,
+                           UserRepository userRepository,
                            UserProfileRepository userProfileRepository,
                            RoleRepository automationRoleRepository,
                            GeneralSettingRepository generalSettingRepository,
@@ -94,6 +97,7 @@ public class TemporarySeeder implements CommandLineRunner {
                            ComplianceReportRepository complianceReportRepository) {
         this.userCommandService = userCommandService;
         this.userQueryService = userQueryService;
+        this.userRepository = userRepository;
         this.userProfileRepository = userProfileRepository;
         this.automationRoleRepository = automationRoleRepository;
         this.generalSettingRepository = generalSettingRepository;
@@ -131,6 +135,14 @@ public class TemporarySeeder implements CommandLineRunner {
             logger.info("IAM User created: {} / admin123", userEmail);
         } else {
             logger.info("IAM User already exists. Skipping IAM registration.");
+            // Ensure the default user is confirmed/verified
+            var user = existingUser.get();
+            if (!user.isConfirmed()) {
+                user.setConfirmed(true);
+                user.setConfirmationCode(null);
+                userRepository.save(user);
+                logger.info("IAM User admin@safelab.com existed but was not confirmed. Forced confirmation to true.");
+            }
         }
 
         // 2. Fetch or Create Workspace
