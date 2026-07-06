@@ -1,12 +1,11 @@
 package com.test.backend.iam.interfaces.rest;
 
-import com.test.backend.iam.domain.services.UserCommandService;
+import com.test.backend.iam.domain.model.commands.ConfirmAccountCommand;
+import com.test.backend.iam.domain.model.commands.ResendConfirmationCodeCommand;
 import com.test.backend.iam.domain.model.commands.UpdatePasswordCommand;
-import com.test.backend.iam.interfaces.rest.resources.AuthenticatedUserResource;
-import com.test.backend.iam.interfaces.rest.resources.SignInResource;
-import com.test.backend.iam.interfaces.rest.resources.SignUpResource;
-import com.test.backend.iam.interfaces.rest.resources.UpdatePasswordResource;
-import com.test.backend.iam.interfaces.rest.resources.UserResource;
+import com.test.backend.iam.domain.model.exceptions.UserNotConfirmedException;
+import com.test.backend.iam.domain.services.UserCommandService;
+import com.test.backend.iam.interfaces.rest.resources.*;
 import com.test.backend.iam.interfaces.rest.transform.AuthenticatedUserResourceFromEntityAssembler;
 import com.test.backend.iam.interfaces.rest.transform.SignInCommandFromResourceAssembler;
 import com.test.backend.iam.interfaces.rest.transform.SignUpCommandFromResourceAssembler;
@@ -18,6 +17,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Optional;
+import java.util.Map;
 
 @RestController
 @RequestMapping(value = "/api/v1/authentication", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -32,26 +34,64 @@ public class AuthenticationController {
 
     @PostMapping("/sign-in")
     @Operation(summary = "Sign In", description = "Authenticates a user and returns a token")
-    public ResponseEntity<AuthenticatedUserResource> signIn(@RequestBody SignInResource signInResource) {
-        var signInCommand = SignInCommandFromResourceAssembler.toCommandFromResource(signInResource);
-        var authenticatedUser = userCommandService.handle(signInCommand);
-        if (authenticatedUser.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    public ResponseEntity<?> signIn(@RequestBody SignInResource signInResource) {
+        try {
+            var signInCommand = SignInCommandFromResourceAssembler.toCommandFromResource(signInResource);
+            var authenticatedUser = userCommandService.handle(signInCommand);
+            if (authenticatedUser.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            var authenticatedUserResource = AuthenticatedUserResourceFromEntityAssembler.toResourceFromEntity(authenticatedUser.get());
+            return ResponseEntity.ok(authenticatedUserResource);
+        } catch (UserNotConfirmedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "ACCOUNT_NOT_CONFIRMED", "email", signInResource.email()));
         }
-        var authenticatedUserResource = AuthenticatedUserResourceFromEntityAssembler.toResourceFromEntity(authenticatedUser.get());
-        return ResponseEntity.ok(authenticatedUserResource);
     }
 
     @PostMapping("/sign-up")
     @Operation(summary = "Sign Up", description = "Registers a new user in the platform")
-    public ResponseEntity<UserResource> signUp(@RequestBody SignUpResource signUpResource) {
-        var signUpCommand = SignUpCommandFromResourceAssembler.toCommandFromResource(signUpResource);
-        var user = userCommandService.handle(signUpCommand);
-        if (user.isEmpty()) {
+    public ResponseEntity<?> signUp(@RequestBody SignUpResource signUpResource) {
+        try {
+            var signUpCommand = SignUpCommandFromResourceAssembler.toCommandFromResource(signUpResource);
+            var user = userCommandService.handle(signUpCommand);
+            if (user.isEmpty()) {
+                return ResponseEntity.badRequest().build();
+            }
+            var userResource = UserResourceFromEntityAssembler.toResourceFromEntity(user.get());
+            return ResponseEntity.status(HttpStatus.CREATED).body(userResource);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/confirm-account")
+    @Operation(summary = "Confirm Account", description = "Confirms a user account using the verification code sent by email")
+    public ResponseEntity<Void> confirmAccount(@RequestBody ConfirmAccountResource confirmAccountResource) {
+        var command = new ConfirmAccountCommand(confirmAccountResource.email(), confirmAccountResource.code());
+        var result = userCommandService.handle(command);
+        if (!result) {
             return ResponseEntity.badRequest().build();
         }
-        var userResource = UserResourceFromEntityAssembler.toResourceFromEntity(user.get());
-        return ResponseEntity.status(HttpStatus.CREATED).body(userResource);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/resend-code")
+    @Operation(summary = "Resend Code", description = "Resends the account verification code via email")
+    public ResponseEntity<Void> resendCode(@RequestBody ResendCodeResource resendCodeResource) {
+        var command = new ResendConfirmationCodeCommand(resendCodeResource.email());
+        var result = userCommandService.handle(command);
+        if (!result) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/clean-test-users")
+    @Operation(summary = "Clean Test Users", description = "Deletes all registered test users and their profiles, keeping only the default administrator.")
+    public ResponseEntity<Void> cleanTestUsers() {
+        userCommandService.handleCleanTestUsers();
+        return ResponseEntity.ok().build();
     }
 
     @PutMapping("/password")

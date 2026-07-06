@@ -20,15 +20,11 @@ public class Incident extends AuditableAbstractAggregateRoot<Incident> {
     @ManyToOne
     @JoinColumn(name = "laboratory_id", nullable = false)
     private Laboratory laboratory;
-
     private String status;
-
     @Column(name = "opened_at")
     private java.time.LocalDateTime openedAt;
-
     @Column(name = "resolved_at")
     private java.time.LocalDateTime resolvedAt;
-
     @Column(name = "escalation_max_mins")
     private Integer escalationMaxMins;
 

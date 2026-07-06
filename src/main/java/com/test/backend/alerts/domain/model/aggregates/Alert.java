@@ -21,11 +21,9 @@ import java.util.List;
 @AllArgsConstructor
 @Table(name = "alerts")
 public class Alert extends AuditableAbstractAggregateRoot<Alert> {
-
     @ManyToOne
     @JoinColumn(name = "laboratory_id", nullable = true)
     private Laboratory laboratory;
-
     @ManyToOne
     @JoinColumn(name = "sensor_configuration_id", nullable = true)
     private SensorConfiguration sensorConfiguration;

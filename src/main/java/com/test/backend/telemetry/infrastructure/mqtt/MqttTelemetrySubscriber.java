@@ -98,22 +98,12 @@ public class MqttTelemetrySubscriber implements MqttCallbackExtended {
     }
 
     private void connect() {
-        int retryDelay = 5000;
-        while (!client.isConnected()) {
-            try {
-                logger.info("Attempting to connect to MQTT broker: {}", client.getServerURI());
-                client.connect(connectOptions);
-                logger.info("Successfully connected to MQTT broker.");
-                break;
-            } catch (MqttException e) {
-                logger.error("Failed to connect to MQTT broker. Retrying in {} seconds...", retryDelay / 1000, e);
-                try {
-                    Thread.sleep(retryDelay);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
+        try {
+            logger.info("Attempting to connect to MQTT broker: {}", client.getServerURI());
+            client.connect(connectOptions);
+            logger.info("Successfully connected to MQTT broker.");
+        } catch (MqttException e) {
+            logger.error("Failed to connect to MQTT broker. Single attempt finished (will not retry to avoid log spam).", e);
         }
     }
 
