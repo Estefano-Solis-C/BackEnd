@@ -9,6 +9,8 @@ import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @Setter
@@ -20,11 +22,24 @@ public class Incident extends AuditableAbstractAggregateRoot<Incident> {
     @ManyToOne
     @JoinColumn(name = "laboratory_id", nullable = false)
     private Laboratory laboratory;
+
+    @Column(name = "title")
+    private String title;
+
+    @Column(name = "description", length = 1000)
+    private String description;
+
+    @Column(name = "severity")
+    private String severity;
+
     private String status;
+
     @Column(name = "opened_at")
-    private java.time.LocalDateTime openedAt;
+    private LocalDateTime openedAt;
+
     @Column(name = "resolved_at")
-    private java.time.LocalDateTime resolvedAt;
+    private LocalDateTime resolvedAt;
+
     @Column(name = "escalation_max_mins")
     private Integer escalationMaxMins;
 
@@ -33,4 +48,42 @@ public class Incident extends AuditableAbstractAggregateRoot<Incident> {
 
     @OneToOne(mappedBy = "incident", cascade = CascadeType.ALL)
     private CorrectiveAction correctiveAction;
+
+    public Incident(Laboratory laboratory, String title, String description, String severity, Integer escalationMaxMins, String escalationNextRole) {
+        this.laboratory = laboratory;
+        this.title = title;
+        this.description = description;
+        this.severity = severity != null ? severity : "CRITICAL";
+        this.status = "OPEN";
+        this.openedAt = LocalDateTime.now();
+        this.escalationMaxMins = escalationMaxMins != null ? escalationMaxMins : 15;
+        this.escalationNextRole = escalationNextRole != null ? escalationNextRole : "COORDINATOR";
+    }
+
+    public void acknowledge() {
+        if ("RESOLVED".equalsIgnoreCase(this.status)) {
+            throw new IllegalStateException("Cannot acknowledge an already resolved incident");
+        }
+        this.status = "ACKNOWLEDGED";
+    }
+
+    public void resolve(CorrectiveAction action) {
+        if ("RESOLVED".equalsIgnoreCase(this.status)) {
+            throw new IllegalStateException("Incident is already resolved");
+        }
+        this.status = "RESOLVED";
+        this.resolvedAt = LocalDateTime.now();
+        this.correctiveAction = action;
+        action.setIncident(this);
+    }
+
+    public void escalate(String nextRole) {
+        if ("RESOLVED".equalsIgnoreCase(this.status)) {
+            throw new IllegalStateException("Cannot escalate a resolved incident");
+        }
+        this.status = "ESCALATED";
+        if (nextRole != null && !nextRole.isBlank()) {
+            this.escalationNextRole = nextRole;
+        }
+    }
 }

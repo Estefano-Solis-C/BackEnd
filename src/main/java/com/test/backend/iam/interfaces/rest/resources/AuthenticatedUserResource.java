@@ -1,4 +1,6 @@
 package com.test.backend.iam.interfaces.rest.resources;
 
-public record AuthenticatedUserResource(Long id, String email, String fullName, String token) {
+import java.util.List;
+
+public record AuthenticatedUserResource(Long id, String username, String token, List<String> roles) {
 }

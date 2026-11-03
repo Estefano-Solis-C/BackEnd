@@ -12,6 +12,8 @@ import com.test.backend.labs.interfaces.rest.transform.CreateLaboratoryCommandFr
 import com.test.backend.labs.interfaces.rest.transform.LaboratoryResourceFromEntityAssembler;
 import com.test.backend.labs.interfaces.rest.transform.UpdateLaboratoryCommandFromResourceAssembler;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,7 +36,10 @@ public class LaboratoryController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all laboratories")
+    @Operation(summary = "Get all laboratories", description = "Retrieves all laboratories registered in the system")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Laboratories retrieved successfully")
+    })
     public ResponseEntity<List<LaboratoryResource>> getAllLaboratories() {
         var query = new GetAllLaboratoriesQuery();
         var laboratories = laboratoryQueryService.handle(query);
@@ -45,7 +50,11 @@ public class LaboratoryController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get laboratory by ID")
+    @Operation(summary = "Get laboratory by ID", description = "Retrieves a laboratory by its unique identifier")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Laboratory retrieved successfully"),
+            @ApiResponse(responseCode = "404", description = "Laboratory not found")
+    })
     public ResponseEntity<LaboratoryResource> getLaboratoryById(@PathVariable Long id) {
         var query = new GetLaboratoryByIdQuery(id);
         var result = laboratoryQueryService.handle(query);
@@ -54,8 +63,11 @@ public class LaboratoryController {
     }
 
     @PostMapping
-    @ApiResponse(responseCode = "201", description = "Lab created successfully")
-    @Operation(summary = "Create a new laboratory")
+    @Operation(summary = "Create a new laboratory", description = "Creates and registers a new laboratory")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Laboratory created successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid laboratory data provided")
+    })
     public ResponseEntity<LaboratoryResource> createLaboratory(@RequestBody CreateLaboratoryResource resource) {
         var command = CreateLaboratoryCommandFromResourceAssembler.toCommandFromResource(resource);
         var result = laboratoryCommandService.handle(command);
@@ -64,7 +76,12 @@ public class LaboratoryController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update an existing laboratory")
+    @Operation(summary = "Update an existing laboratory", description = "Updates the attributes and configuration of an existing laboratory")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Laboratory updated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid laboratory data provided"),
+            @ApiResponse(responseCode = "404", description = "Laboratory not found")
+    })
     public ResponseEntity<LaboratoryResource> updateLaboratory(@PathVariable Long id, @RequestBody UpdateLaboratoryResource resource) {
         var command = UpdateLaboratoryCommandFromResourceAssembler.toCommandFromResource(id, resource);
         var result = laboratoryCommandService.handle(command);
@@ -73,7 +90,11 @@ public class LaboratoryController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete laboratory by ID")
+    @Operation(summary = "Delete laboratory by ID", description = "Deletes a laboratory by its unique identifier")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Laboratory deleted successfully"),
+            @ApiResponse(responseCode = "404", description = "Laboratory not found")
+    })
     public ResponseEntity<?> deleteLaboratory(@PathVariable Long id) {
         var command = new DeleteLaboratoryCommand(id);
         try {

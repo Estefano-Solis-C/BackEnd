@@ -11,6 +11,7 @@ import com.test.backend.iam.domain.model.commands.SignUpCommand;
 import com.test.backend.iam.domain.model.commands.UpdatePasswordCommand;
 import com.test.backend.iam.domain.model.entities.Role;
 import com.test.backend.iam.domain.model.events.UserRegisteredEvent;
+import com.test.backend.iam.domain.model.exceptions.UserAlreadyExistsException;
 import com.test.backend.iam.domain.model.exceptions.UserNotConfirmedException;
 import com.test.backend.iam.domain.model.valueobjects.AuthenticatedUser;
 import com.test.backend.iam.domain.model.valueobjects.Roles;
@@ -75,11 +76,7 @@ public class UserCommandServiceImpl implements UserCommandService {
     @Override
     public Optional<User> handle(SignUpCommand command) {
         if (userRepository.existsByEmail(command.email())) {
-            var existingUser = userRepository.findByEmail(command.email()).orElseThrow();
-            if (!existingUser.isConfirmed()) {
-                throw new RuntimeException("EMAIL_ALREADY_EXISTS_UNCONFIRMED");
-            }
-            throw new RuntimeException("EMAIL_ALREADY_EXISTS");
+            throw new UserAlreadyExistsException("Attempt to register with an already existing username or email in database");
         }
 
         var roles = new ArrayList<Role>();

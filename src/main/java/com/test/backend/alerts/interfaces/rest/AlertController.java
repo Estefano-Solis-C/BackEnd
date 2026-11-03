@@ -12,6 +12,8 @@ import com.test.backend.alerts.interfaces.rest.transform.CreateAlertCommandFromR
 import com.test.backend.alerts.interfaces.rest.transform.AlertResourceFromEntityAssembler;
 import com.test.backend.alerts.interfaces.rest.transform.UpdateAlertCommandFromResourceAssembler;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,7 +35,10 @@ public class AlertController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all alerts")
+    @Operation(summary = "Get all alerts", description = "Retrieves all alerts registered in the system")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Alerts retrieved successfully")
+    })
     public ResponseEntity<List<AlertResource>> getAllAlerts() {
         var query = new GetAllAlertsQuery();
         var alerts = alertQueryService.handle(query);
@@ -44,7 +49,11 @@ public class AlertController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get alert by ID")
+    @Operation(summary = "Get alert by ID", description = "Retrieves an alert by its unique identifier")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Alert retrieved successfully"),
+            @ApiResponse(responseCode = "404", description = "Alert not found")
+    })
     public ResponseEntity<AlertResource> getAlertById(@PathVariable Long id) {
         var query = new GetAlertByIdQuery(id);
         var result = alertQueryService.handle(query);
@@ -53,7 +62,11 @@ public class AlertController {
     }
 
     @PostMapping
-    @Operation(summary = "Create a new alert")
+    @Operation(summary = "Create a new alert", description = "Creates and registers a new alert event")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Alert created successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid alert data provided")
+    })
     public ResponseEntity<AlertResource> createAlert(@RequestBody CreateAlertResource resource) {
         var command = CreateAlertCommandFromResourceAssembler.toCommandFromResource(resource);
         var result = alertCommandService.handle(command);
@@ -62,7 +75,12 @@ public class AlertController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update an existing alert")
+    @Operation(summary = "Update an existing alert", description = "Updates the attributes of an existing alert")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Alert updated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid alert data provided"),
+            @ApiResponse(responseCode = "404", description = "Alert not found")
+    })
     public ResponseEntity<AlertResource> updateAlert(@PathVariable Long id, @RequestBody UpdateAlertResource resource) {
         var command = UpdateAlertCommandFromResourceAssembler.toCommandFromResource(id, resource);
         var result = alertCommandService.handle(command);
@@ -71,7 +89,11 @@ public class AlertController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete alert by ID")
+    @Operation(summary = "Delete alert by ID", description = "Deletes an alert by its unique identifier")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Alert deleted successfully"),
+            @ApiResponse(responseCode = "404", description = "Alert not found")
+    })
     public ResponseEntity<?> deleteAlert(@PathVariable Long id) {
         var command = new DeleteAlertCommand(id);
         try {

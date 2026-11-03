@@ -1,0 +1,45 @@
+services:
+  safelab-mysql:
+    image: mysql:8.0
+    container_name: safelab-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_DATABASE: safelab_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - safelab_mysql_data:/var/lib/mysql
+      - ./init_safelab.sql:/docker-entrypoint-initdb.d/init_safelab.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-padmin"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  safelab-backend:
+    image: safelab-backend:latest
+    container_name: safelab-backend
+    restart: unless-stopped
+    depends_on:
+      safelab-mysql:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:mysql://safelab-mysql:3306/safelab_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: admin
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      AUTHORIZATION_JWT_SECRET: SafeLabSecretKeyForJwtTokenGeneration2026SecureKey32BytesLong!
+      AUTHORIZATION_JWT_EXPIRATION_DAYS: 50
+      MQTT_HOST: broker.hivemq.com
+      MQTT_PORT: 1883
+      MQTT_PROTOCOL: tcp
+      MQTT_TOPIC: safelab/#
+      PORT: 8080
+
+volumes:
+  safelab_mysql_data:

@@ -28,8 +28,30 @@ public class AuditTrail extends AuditableAbstractAggregateRoot<AuditTrail> {
 
     private String action;
 
+    @Column(name = "actor")
+    private String actor;
+
+    @Column(name = "previous_state")
+    private String previousState;
+
+    @Column(name = "new_state")
+    private String newState;
+
+    @Column(name = "details", length = 1000)
+    private String details;
+
     private String signature;
 
     @ManyToMany(mappedBy = "auditTrails")
     private List<ComplianceReport> complianceReports = new ArrayList<>();
+
+    public AuditTrail(String targetId, String action, String actor, String previousState, String newState, String details, String signature) {
+        this.targetId = targetId;
+        this.action = action;
+        this.actor = actor;
+        this.previousState = previousState;
+        this.newState = newState;
+        this.details = details;
+        this.signature = signature;
+    }
 }

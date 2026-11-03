@@ -11,6 +11,8 @@ import com.test.backend.labs.interfaces.rest.transform.CreateLaboratoryCommandFr
 import com.test.backend.labs.interfaces.rest.transform.UpdateLaboratoryCommandFromResourceAssembler;
 import com.test.backend.telemetry.interfaces.rest.resources.TelemetryLaboratoryResource;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,7 +35,10 @@ public class TelemetryLaboratoryController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all telemetry laboratories")
+    @Operation(summary = "Get all telemetry laboratories", description = "Retrieves telemetry-enriched view of all laboratories")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Telemetry laboratories retrieved successfully")
+    })
     public ResponseEntity<List<TelemetryLaboratoryResource>> getAllLaboratories() {
         var query = new GetAllLaboratoriesQuery();
         var laboratories = laboratoryQueryService.handle(query);
@@ -44,7 +49,11 @@ public class TelemetryLaboratoryController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get telemetry laboratory by ID")
+    @Operation(summary = "Get telemetry laboratory by ID", description = "Retrieves telemetry-enriched view of a laboratory by ID")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Telemetry laboratory retrieved successfully"),
+            @ApiResponse(responseCode = "404", description = "Laboratory not found")
+    })
     public ResponseEntity<TelemetryLaboratoryResource> getLaboratoryById(@PathVariable Long id) {
         var query = new GetLaboratoryByIdQuery(id);
         var result = laboratoryQueryService.handle(query);
@@ -53,7 +62,11 @@ public class TelemetryLaboratoryController {
     }
 
     @PostMapping
-    @Operation(summary = "Create a new telemetry laboratory")
+    @Operation(summary = "Create a new telemetry laboratory", description = "Creates and registers a new laboratory via telemetry API")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Telemetry laboratory created successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid laboratory data provided")
+    })
     public ResponseEntity<TelemetryLaboratoryResource> createLaboratory(@RequestBody CreateLaboratoryResource resource) {
         var command = CreateLaboratoryCommandFromResourceAssembler.toCommandFromResource(resource);
         var result = laboratoryCommandService.handle(command);
@@ -62,7 +75,12 @@ public class TelemetryLaboratoryController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update an existing telemetry laboratory")
+    @Operation(summary = "Update an existing telemetry laboratory", description = "Updates a laboratory via telemetry API")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Telemetry laboratory updated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid laboratory data provided"),
+            @ApiResponse(responseCode = "404", description = "Laboratory not found")
+    })
     public ResponseEntity<TelemetryLaboratoryResource> updateLaboratory(@PathVariable Long id, @RequestBody UpdateLaboratoryResource resource) {
         var command = UpdateLaboratoryCommandFromResourceAssembler.toCommandFromResource(id, resource);
         var result = laboratoryCommandService.handle(command);
@@ -71,7 +89,11 @@ public class TelemetryLaboratoryController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete telemetry laboratory by ID")
+    @Operation(summary = "Delete telemetry laboratory by ID", description = "Deletes a laboratory via telemetry API")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Telemetry laboratory deleted successfully"),
+            @ApiResponse(responseCode = "404", description = "Laboratory not found")
+    })
     public ResponseEntity<?> deleteLaboratory(@PathVariable Long id) {
         var command = new DeleteLaboratoryCommand(id);
         try {

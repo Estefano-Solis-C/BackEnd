@@ -40,7 +40,7 @@ public class TokenServiceImpl implements BearerTokenService {
                 .subject(email)
                 .issuedAt(now)
                 .expiration(expiration)
-                .signWith(getSigningKey())
+                .signWith(getSigningKey(), Jwts.SIG.HS256)
                 .compact();
     }
 

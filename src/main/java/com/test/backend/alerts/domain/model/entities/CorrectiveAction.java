@@ -8,6 +8,8 @@ import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @Setter
@@ -28,5 +30,15 @@ public class CorrectiveAction extends AuditableModel {
     private String actionTaken;
 
     @Column(name = "performed_at")
-    private java.time.LocalDateTime performedAt;
+    private LocalDateTime performedAt;
+
+    public CorrectiveAction(Incident incident, Long technicianId, String actionTaken) {
+        if (actionTaken == null || actionTaken.trim().length() < 10) {
+            throw new IllegalArgumentException("Action taken description must contain at least 10 characters for regulatory audit compliance");
+        }
+        this.incident = incident;
+        this.technicianId = technicianId != null ? technicianId : 1L;
+        this.actionTaken = actionTaken.trim();
+        this.performedAt = LocalDateTime.now();
+    }
 }
